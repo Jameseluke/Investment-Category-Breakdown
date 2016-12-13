@@ -10,12 +10,15 @@
                 Ext.define('CustomApp', {
     extend: 'Rally.app.App',
     componentCls: 'app',
+    height: 600,
+    border: 2,
     
     launch: function() {
         //Write app code here
         this._chartData = [];
-        this._box = this.getBox();
-        console.log(this._box["width"]);
+        this._investmentData = [];
+        this._investmentCategories = [];
+        this._investmentIndex = 0;
         this.add({
             xtype: 'container',
             itemId: 'reportContainer'
@@ -94,7 +97,7 @@
         var me = this;
         var clickChartHandler = _.isFunction(this.clickHandler) ? this.clickHandler : Ext.emptyFn;
         var height = this.height;
-        var pieHeight = this.height * 0.9;
+        var pieHeight = this.height * 0.65;
 
         return Ext.Object.merge({
             xtype: 'rallychart',
@@ -108,8 +111,19 @@
                         size: pieHeight,
                         allowPointSelect: false,
                         dataLabels: {
-                            enabled: false
+                            enabled: true,
+                            formatter: function() {
+                                if (this.y !== 0) {
+                                  return "<b>" + this.point.name + ":</b> " + this.percentage.toFixed(1); //'<b>{point.name}</b>: {point.percentage:.1f}';
+                                } else {
+                                  return null;
+                                }
+                            },
+                            style: {
+                                color: 'black'
                         }
+                }
+
                     }
                     /*{
                         type: 'pie',
@@ -130,7 +144,7 @@
                     width: this.width,
                     spacingTop: 10,
                     spacingRight: 3,
-                    spacingBottom: 25,
+                    spacingBottom: 30,
                     spacingLeft: 3,
                     events: {
                         click: clickChartHandler
@@ -139,22 +153,22 @@
                 subtitle: {
                     useHTML: true,
                     text: '<table align="center" class="pie-chart-legend"><tr>'+
-                    '<td><span class="legend-swatch none-sample-swatch"></span><span>None</td></tr><tr>' +
-                    '<td><span class="legend-swatch short-sample-swatch"></span>Short Term Growth</td></tr><tr>' +
-                    '<td><span class="legend-swatch strategic-sample-swatch"></span>Strategic Growth</td></tr><tr>' +
-                    '<td><span class="legend-swatch cost-sample-swatch"></span>Cost Savings</td></tr><tr>'+
-                    '<td><span class="legend-swatch maintenance-sample-swatch"></span><span>Maintenance</td></tr><tr>' +
-                    '<td><span class="legend-swatch errors-sample-swatch"></span>Reduce Errors & Fallouts</td></tr><tr>' +
-                    '<td><span class="legend-swatch order-sample-swatch"></span>Order Tracking</td></tr><tr>' +
-                    '<td><span class="legend-swatch time-sample-swatch"></span>Reduced Time to Service</td></tr></tr><tr>'+
-                    '<td><span class="legend-swatch operational-sample-swatch"></span><span>Reduce Operational Cost</td></tr><tr>' +
-                    '<td><span class="legend-swatch product-progress-sample-swatch"></span>Product Changes</td></tr><tr>' +
+                    '<td><span class="legend-swatch none-sample-swatch"></span><span>None</td>' +
+                    '<td><span class="legend-swatch short-sample-swatch"></span>Short Term Growth</td>' +
+                    '<td><span class="legend-swatch strategic-sample-swatch"></span>Strategic Growth</td>' +
+                    '<td><span class="legend-swatch cost-sample-swatch"></span>Cost Savings</td>'+
+                    '<td><span class="legend-swatch maintenance-sample-swatch"></span><span>Maintenance</td>' +
+                    '<td><span class="legend-swatch errors-sample-swatch"></span>Reduce Errors & Fallouts</td></tr>' +
+                    '<td><span class="legend-swatch order-sample-swatch"></span>Order Tracking</td>' +
+                    '<td><span class="legend-swatch time-sample-swatch"></span>Reduced Time to Service</td>'+
+                    '<td><span class="legend-swatch operational-sample-swatch"></span><span>Reduce Operational Cost</td>' +
+                    '<td><span class="legend-swatch product-progress-sample-swatch"></span>Product Changes</td>' +
                     '<td><span class="legend-swatch tech-sample-swatch"></span>Technology & Capacity</td></tr></table>',
-                    verticalAlign: 'top',
+                    verticalAlign: 'bottom',
                     floating: false,
-                    align: "left",
-                    x: 25,
-                    y: 25
+                    align: "center",
+                    x: 0,
+                    y: -50
                 },
                 tooltip: {/*
                     formatter: this._formatTooltip,
