@@ -81,6 +81,7 @@ Ext.define('CustomApp', {
     },
     
     _onAllDataLoaded: function() {
+        
         var records = this.store.getRange();
         var that = this;
         this.down('#reportContainer').add(
@@ -100,6 +101,12 @@ Ext.define('CustomApp', {
         _.each(records, function(record) {
            that._addEpicToChart(record);
         });
+        this._investmentSeries.push({
+                name: this._investmentCategories[this._investmentIndex],
+                y: this._investmentData[this._investmentIndex],
+                color: this._colorFromInvestment(this._investmentCategories[this._investmentIndex]),
+        });
+        
         var chart = this._createChartConfig(this._showEpic, !this._showEpic);
         this.down('#reportContainer').add(chart);
     },
@@ -161,7 +168,19 @@ Ext.define('CustomApp', {
                         size: pieHeight,
                         visible: byCategory,
                         allowPointSelect: false,
-                        dataLabels: { enabled: false }
+                        dataLabels: {
+                            enabled: byCategory,
+                            formatter: function() {
+                                if (this.y !== 0) {
+                                  return "<b>" + this.point.name + ":</b> " + this.percentage.toFixed(1) + "%"; //'<b>{point.name}</b>: {point.percentage:.1f}';
+                                } else {
+                                  return null;
+                                }
+                            },
+                            style: {
+                                color: 'black'
+                            }
+                        }
                     }
                 ]
             },
@@ -207,6 +226,7 @@ Ext.define('CustomApp', {
                 title: { text: null },
                 plotOptions: {
                     pie: {
+                        animation: false,
                         cursor: 'pointer',
                         shadow: false,
                         center: ['50%', '45%'],
