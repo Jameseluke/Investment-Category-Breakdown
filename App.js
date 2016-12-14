@@ -10,6 +10,8 @@ Ext.define('CustomApp', {
         this._investmentData = [];
         this._investmentCategories = [];
         this._investmentIndex = 0;
+        this._investmentSeries = [];
+        this._showEpic = true;
         this.add({
             xtype: 'container',
             itemId: 'reportContainer'
@@ -20,7 +22,6 @@ Ext.define('CustomApp', {
     },
     
     _loadEpics: function() {
-        console.log(Array.isArray(this._chartData));
         this.store = Ext.create('Rally.data.wsapi.artifact.Store', {
             models: ['PortfolioItem/Epic'],
             fetch: ['FormattedID', 'Name', 'LeafStoryPlanEstimateTotal', 'InvestmentCategory'],
@@ -53,17 +54,53 @@ Ext.define('CustomApp', {
                 status: record.get('InvestmentCategory'),
                 ref: record.get('_ref')
         });
+
+        if(this._investmentCategories[this._investmentIndex] === undefined){ //Occurs on first record
+            this._investmentCategories[this._investmentIndex] = record.get("InvestmentCategory");
+            this._investmentData[this._investmentIndex] = record.get('LeafStoryPlanEstimateTotal');
+            console.log(typeof(record.get('LeafStoryPlanEstimateTotal')));
+            console.log(this._investmentIndex);
+        }
+        
+        else if(this._investmentCategories[this._investmentIndex] === record.get("InvestmentCategory")){
+            this._investmentData[this._investmentIndex] = this._investmentData[this._investmentIndex] + record.get('LeafStoryPlanEstimateTotal');
+
+        }
+        
+        else {
+            this._investmentSeries.push({
+                name: this._investmentCategories[this._investmentIndex],
+                y: this._investmentData[this._investmentIndex],
+                color: this._colorFromInvestment(this._investmentCategories[this._investmentIndex]),
+            });
+            this._investmentIndex++;
+            this._investmentCategories[this._investmentIndex] = record.get("InvestmentCategory");
+            this._investmentData[this._investmentIndex] = record.get('LeafStoryPlanEstimateTotal');
+        }
+        
     },
     
     _onAllDataLoaded: function() {
         var records = this.store.getRange();
         var that = this;
+        this.down('#reportContainer').add(
+            Ext.create('Ext.Button', {
+            text: 'Click me',
+            renderTo: Ext.getBody(),
+            handler: function() {
+               
+               that.down('#reportContainer').remove('chart');
+
+               that._showEpic = !that._showEpic;
+               var chart = that._createChartConfig(that._showEpic, !that._showEpic);
+               that.down('#reportContainer').add(chart);
+            }
+        })
+    );
         _.each(records, function(record) {
            that._addEpicToChart(record);
-           console.log(record.get('InvestmentCategory'));
         });
-        console.log(this._chartData);
-        var chart = this._createChartConfig();
+        var chart = this._createChartConfig(this._showEpic, !this._showEpic);
         this.down('#reportContainer').add(chart);
     },
     
@@ -84,7 +121,7 @@ Ext.define('CustomApp', {
         return progressColors[category];
     },
     
-    _createChartConfig: function(overrides) {
+    _createChartConfig: function(byEpic, byCategory) {
         var me = this;
         var clickChartHandler = _.isFunction(this.clickHandler) ? this.clickHandler : Ext.emptyFn;
         var height = this.height;
@@ -92,6 +129,7 @@ Ext.define('CustomApp', {
 
         return Ext.Object.merge({
             xtype: 'rallychart',
+            itemId: 'chart',
             loadMask: false,
             chartData: {
                 series: [
@@ -101,8 +139,9 @@ Ext.define('CustomApp', {
                         data: this._chartData,
                         size: pieHeight,
                         allowPointSelect: false,
+                        showInLegend: false,
                         dataLabels: {
-                            enabled: true,
+                            enabled: byEpic,
                             formatter: function() {
                                 if (this.y !== 0) {
                                   return "<b>" + this.point.name + ":</b> " + this.percentage.toFixed(1) + "%"; //'<b>{point.name}</b>: {point.percentage:.1f}';
@@ -112,19 +151,18 @@ Ext.define('CustomApp', {
                             },
                             style: {
                                 color: 'black'
+                            }
                         }
-                }
-
-                    }
-                    /*{
+                    },
+                    {
                         type: 'pie',
-                        name: 'Children',
-                        data: this._childChartData,
+                        name: 'Category',
+                        data: this._investmentSeries,
                         size: pieHeight,
-                        innerSize: 0.8 * pieHeight,
+                        visible: byCategory,
                         allowPointSelect: false,
                         dataLabels: { enabled: false }
-                    }*/
+                    }
                 ]
             },
 
@@ -141,7 +179,7 @@ Ext.define('CustomApp', {
                         click: clickChartHandler
                     }
                 },
-                subtitle: {
+                /*subtitle: {
                     useHTML: true,
                     text: '<table align="center" class="pie-chart-legend"><tr>'+
                     '<td><span class="legend-swatch none-sample-swatch"></span><span>None</td>' +
@@ -160,7 +198,7 @@ Ext.define('CustomApp', {
                     align: "center",
                     x: 0,
                     y: -50
-                },
+                },*/
                 tooltip: {/*
                     formatter: this._formatTooltip,
                     useHTML: true*/
@@ -183,10 +221,10 @@ Ext.define('CustomApp', {
                                 }
                             }
                         },
-                        showInLegend: false
+                        showInLegend: true
                     }
                 }
             }
-        }, overrides || {});
+        }, {});
     },
 });
