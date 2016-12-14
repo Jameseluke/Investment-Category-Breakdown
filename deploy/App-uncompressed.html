@@ -90,23 +90,58 @@
     },
     
     _onAllDataLoaded: function() {
-        
         var records = this.store.getRange();
         var that = this;
+        
+        var states = Ext.create('Ext.data.Store', {
+                                    fields: ['grouper', 'epicornah'],
+                                    data : [
+                                        {'grouper': 'Epic', 'epicornah': true},
+                                        {'grouper': 'Investment Category', 'epicornah': false},
+                                    ]
+                                });
+        
+         var format = Ext.create('Ext.data.Store', {
+                                    fields: ['grouper', 'storyornah'],
+                                    data : [
+                                        {'grouper': 'Percentage', 'storyornah': false},
+                                        {'grouper': 'Plan Estimate', 'storyornah': true},
+                                    ]
+                                });
+                                
+        this.down('#reportContainer').add(
+            Ext.create('Ext.form.ComboBox', {
+                fieldLabel: 'Group By:',
+                store: states,
+                queryMode: 'local',
+                displayField: 'grouper',
+                valueField: 'epicornah'
+            })
+        );
+        
+        this.down('#reportContainer').add(
+            Ext.create('Ext.form.ComboBox', {
+                fieldLabel: 'Format:',
+                store: format,
+                queryMode: 'local',
+                displayField: 'grouper',
+                valueField: 'storyornah'
+            })
+        );
+                                
         this.down('#reportContainer').add(
             Ext.create('Ext.Button', {
-            text: 'Click me',
-            renderTo: Ext.getBody(),
-            handler: function() {
-               
-               that.down('#reportContainer').remove('chart');
-
-               that._showEpic = !that._showEpic;
-               var chart = that._createChartConfig(that._showEpic, !that._showEpic);
-               that.down('#reportContainer').add(chart);
-            }
-        })
-    );
+                text: 'Click me',
+                renderTo: Ext.getBody(),
+                handler: function() {
+                   that.down('#reportContainer').remove('chart');
+                   that._showEpic = !that._showEpic;
+                   var chart = that._createChartConfig(that._showEpic, !that._showEpic);
+                   that.down('#reportContainer').add(chart);
+                }
+            })
+         );
+         
         _.each(records, function(record) {
            that._addEpicToChart(record);
         });
