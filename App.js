@@ -11,7 +11,6 @@ Ext.define('CustomApp', {
         this._investmentCategories = [];
         this._investmentIndex = 0;
         this._investmentSeries = [];
-        this._showEpic = true;
         this.add({
             xtype: 'container',
             itemId: 'reportContainer'
@@ -91,7 +90,6 @@ Ext.define('CustomApp', {
                                         {'grouper': 'Investment Category', 'epicornah': false},
                                     ]
                                 });
-        
          var format = Ext.create('Ext.data.Store', {
                                     fields: ['grouper', 'storyornah'],
                                     data : [
@@ -102,21 +100,25 @@ Ext.define('CustomApp', {
                                 
         this.down('#reportContainer').add(
             Ext.create('Ext.form.ComboBox', {
+                id: 'group',
                 fieldLabel: 'Group By:',
                 store: states,
                 queryMode: 'local',
                 displayField: 'grouper',
-                valueField: 'epicornah'
+                valueField: 'epicornah',
+                value: false
             })
         );
         
         this.down('#reportContainer').add(
             Ext.create('Ext.form.ComboBox', {
+                id: 'format',
                 fieldLabel: 'Format:',
                 store: format,
                 queryMode: 'local',
                 displayField: 'grouper',
-                valueField: 'storyornah'
+                valueField: 'storyornah',
+                value: false
             })
         );
                                 
@@ -127,7 +129,7 @@ Ext.define('CustomApp', {
                 handler: function() {
                    that.down('#reportContainer').remove('chart');
                    that._showEpic = !that._showEpic;
-                   var chart = that._createChartConfig(that._showEpic, !that._showEpic);
+                   var chart = that._createChartConfig(Ext.getCmp('group').getValue(), Ext.getCmp('format').getValue());
                    that.down('#reportContainer').add(chart);
                 }
             })
@@ -142,7 +144,7 @@ Ext.define('CustomApp', {
                 color: this._colorFromInvestment(this._investmentCategories[this._investmentIndex]),
         });
         
-        var chart = this._createChartConfig(this._showEpic, !this._showEpic);
+        var chart = this._createChartConfig(Ext.getCmp('group').getValue(), Ext.getCmp('format').getValue());
         this.down('#reportContainer').add(chart);
     },
     
@@ -163,7 +165,7 @@ Ext.define('CustomApp', {
         return progressColors[category];
     },
     
-    _createChartConfig: function(byEpic, byCategory) {
+    _createChartConfig: function(byEpic, byEstimate) {
         var me = this;
         var clickChartHandler = _.isFunction(this.clickHandler) ? this.clickHandler : Ext.emptyFn;
         var height = this.height;
@@ -186,7 +188,13 @@ Ext.define('CustomApp', {
                             enabled: byEpic,
                             formatter: function() {
                                 if (this.y !== 0) {
-                                  return "<b>" + this.point.name + ":</b> " + this.percentage.toFixed(1) + "%"; //'<b>{point.name}</b>: {point.percentage:.1f}';
+                                    if(!byEstimate){
+                                        return "<b>" + this.point.name + ":</b> " + this.percentage.toFixed(1) + "%"; //'<b>{point.name}</b>: {point.percentage:.1f}';
+                                    } 
+                                    else {
+                                        return "<b>" + this.point.name + ":</b> " + this.y; //'<b>{point.name}</b>: {point.percentage:.1f}';
+                                    }
+                                  
                                 } else {
                                   return null;
                                 }
@@ -201,13 +209,19 @@ Ext.define('CustomApp', {
                         name: 'Category',
                         data: this._investmentSeries,
                         size: pieHeight,
-                        visible: byCategory,
+                        visible: !byEpic,
                         allowPointSelect: false,
                         dataLabels: {
-                            enabled: byCategory,
+                            enabled: !byEpic,
                             formatter: function() {
                                 if (this.y !== 0) {
-                                  return "<b>" + this.point.name + ":</b> " + this.percentage.toFixed(1) + "%"; //'<b>{point.name}</b>: {point.percentage:.1f}';
+                                    if(!byEstimate){
+                                        return "<b>" + this.point.name + ":</b> " + this.percentage.toFixed(1) + "%"; //'<b>{point.name}</b>: {point.percentage:.1f}';
+                                    }
+                                    else {
+                                        return "<b>" + this.point.name + ":</b> " + this.y; //'<b>{point.name}</b>: {point.percentage:.1f}';
+                                    }
+                                  
                                 } else {
                                   return null;
                                 }
