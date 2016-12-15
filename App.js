@@ -11,11 +11,13 @@ Ext.define('CustomApp', {
         this._investmentDrilldown = {};
         this.add({
             xtype: 'container',
-            itemId: 'settingsContainer'
+            itemId: 'settingsContainer',
+            cls: 'settings'
         });
         this.add({
             xtype: 'container',
-            itemId: 'reportContainer'
+            itemId: 'reportContainer',
+            cls: 'report'
         });
         this._loadEpics();
         
@@ -131,17 +133,32 @@ Ext.define('CustomApp', {
             })
         );
         
+         this.down('#settingsContainer').add({
+            xtype: 'checkboxgroup',
+            fieldLabel: '',
+            id: 'check',
+            columns: 1,
+            vertical: true,
+            // Arrange checkboxes into two columns, distributed vertically
+            items: [
+                { boxLabel: 'Show Labels', name: 'lb', inputValue: '1', checked: true },
+                { boxLabel: 'Show Tooltips', name: 'tt', inputValue: '2', checked: true },
+            ]
+        });
+        
         this.down('#settingsContainer').add(
             Ext.create('Ext.Button', {
                 text: 'Generate',
                 handler: function() {
+                    that.down('#settingsContainer').remove('backbutton');
                    that.down('#reportContainer').remove('chart');
-                   that._showEpic = !that._showEpic;
                    var chart = that._createChartConfig(that._investmentSeries, Ext.getCmp('group').getValue(), Ext.getCmp('group').getValue(),  Ext.getCmp('format').getValue(), 'Plan Estimate by Investment Category');
                    that.down('#reportContainer').add(chart);
                 }
             })
          );
+         
+        
         
         _.each(records, function(record) {
            that._addEpicToChart(record);
@@ -189,14 +206,14 @@ Ext.define('CustomApp', {
     
     _formatTooltip: function(){
         var additional = (this.point.rallyName) ? this.point.rallyName + "<br />" : "";
-        return "<b>" + this.point.name + "</b><br />" + additional + "Plan Estimate: " + this.y + "<br />Percentage of Investment: " + this.percentage.toFixed(1) + "%";
+        return "<b>" + this.point.name + "</b><br />" + additional + "<b>Plan Estimate:</b> " + this.y + "<br /><b>Percentage of Investment:</b> " + this.percentage.toFixed(1) + "%";
     },
-    
     _createChartConfig: function(dataseries, detailed, byEpic, byEstimate, title) {
         var me = this;
         var clickChartHandler = _.isFunction(this.clickHandler) ? this.clickHandler : Ext.emptyFn;
         var height = this.height;
         var pieHeight = this.height * 0.65;
+        var settings = Ext.getCmp('check').getValue();
         return Ext.Object.merge({
             xtype: 'rallychart',
             itemId: 'chart',
@@ -210,7 +227,7 @@ Ext.define('CustomApp', {
                         size: pieHeight,
                         allowPointSelect: false,
                         dataLabels: {
-                            enabled: true,
+                            enabled: settings["lb"],
                             formatter: function() {
                                 var label = (byEpic) ? this.point.rallyName : this.point.name;
                                 if (this.y !== 0) {
@@ -239,7 +256,7 @@ Ext.define('CustomApp', {
                         allowPointSelect: false,
                         showInLegend: false,
                         dataLabels: {
-                            enabled: detailed,
+                            enabled: settings["lb"],
                             formatter: function() {
                                  if (this.y !== 0) {
                                     if(!byEstimate){
@@ -294,6 +311,7 @@ Ext.define('CustomApp', {
                     y: -50
                 },*/
                 tooltip: {
+                    enabled: settings["tt"],
                     formatter: this._formatTooltip,
                     useHTML: true
                 },
@@ -332,3 +350,4 @@ Ext.define('CustomApp', {
         }, {});
     },
 });
+

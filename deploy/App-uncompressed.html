@@ -20,11 +20,13 @@
         this._investmentDrilldown = {};
         this.add({
             xtype: 'container',
-            itemId: 'settingsContainer'
+            itemId: 'settingsContainer',
+            cls: 'settings'
         });
         this.add({
             xtype: 'container',
-            itemId: 'reportContainer'
+            itemId: 'reportContainer',
+            cls: 'report'
         });
         this._loadEpics();
         
@@ -140,17 +142,32 @@
             })
         );
         
+         this.down('#settingsContainer').add({
+            xtype: 'checkboxgroup',
+            fieldLabel: '',
+            id: 'check',
+            columns: 1,
+            vertical: true,
+            // Arrange checkboxes into two columns, distributed vertically
+            items: [
+                { boxLabel: 'Show Labels', name: 'lb', inputValue: '1', checked: true },
+                { boxLabel: 'Show Tooltips', name: 'tt', inputValue: '2', checked: true },
+            ]
+        });
+        
         this.down('#settingsContainer').add(
             Ext.create('Ext.Button', {
                 text: 'Generate',
                 handler: function() {
+                    that.down('#settingsContainer').remove('backbutton');
                    that.down('#reportContainer').remove('chart');
-                   that._showEpic = !that._showEpic;
                    var chart = that._createChartConfig(that._investmentSeries, Ext.getCmp('group').getValue(), Ext.getCmp('group').getValue(),  Ext.getCmp('format').getValue(), 'Plan Estimate by Investment Category');
                    that.down('#reportContainer').add(chart);
                 }
             })
          );
+         
+        
         
         _.each(records, function(record) {
            that._addEpicToChart(record);
@@ -198,14 +215,14 @@
     
     _formatTooltip: function(){
         var additional = (this.point.rallyName) ? this.point.rallyName + "<br />" : "";
-        return "<b>" + this.point.name + "</b><br />" + additional + "Plan Estimate: " + this.y + "<br />Percentage of Investment: " + this.percentage.toFixed(1) + "%";
+        return "<b>" + this.point.name + "</b><br />" + additional + "<b>Plan Estimate:</b> " + this.y + "<br /><b>Percentage of Investment:</b> " + this.percentage.toFixed(1) + "%";
     },
-    
     _createChartConfig: function(dataseries, detailed, byEpic, byEstimate, title) {
         var me = this;
         var clickChartHandler = _.isFunction(this.clickHandler) ? this.clickHandler : Ext.emptyFn;
         var height = this.height;
         var pieHeight = this.height * 0.65;
+        var settings = Ext.getCmp('check').getValue();
         return Ext.Object.merge({
             xtype: 'rallychart',
             itemId: 'chart',
@@ -219,7 +236,7 @@
                         size: pieHeight,
                         allowPointSelect: false,
                         dataLabels: {
-                            enabled: true,
+                            enabled: settings["lb"],
                             formatter: function() {
                                 var label = (byEpic) ? this.point.rallyName : this.point.name;
                                 if (this.y !== 0) {
@@ -248,7 +265,7 @@
                         allowPointSelect: false,
                         showInLegend: false,
                         dataLabels: {
-                            enabled: detailed,
+                            enabled: settings["lb"],
                             formatter: function() {
                                  if (this.y !== 0) {
                                     if(!byEstimate){
@@ -303,6 +320,7 @@
                     y: -50
                 },*/
                 tooltip: {
+                    enabled: settings["tt"],
                     formatter: this._formatTooltip,
                     useHTML: true
                 },
@@ -343,6 +361,7 @@
 });
 
 
+
             Rally.launchApp('CustomApp', {
                 name:"burndown",
 	            parentRepos:""
@@ -356,67 +375,6 @@
     <style type="text/css">
         .app {
   /* Add app styles here */
-}
-.pie-chart-legend {
-  color: #3E576F;
-  font-size: 12px;
-  padding: 5px;
-  border: 1px solid #909090;
-  -webkit-border-radius: 5px;
-  -moz-border-radius: 5px;
-  border-radius: 5px;
-}
-.pie-chart-legend .legend-swatch {
-  width: 17px;
-  height: 12px;
-  border: 1px solid #EEE;
-  -webkit-border-radius: 5px;
-  -moz-border-radius: 5px;
-  border-radius: 5px;
-  float: left;
-  margin: 0 3px 0 6px;
-}
-.pie-chart-legend .legend-swatch.none-sample-swatch {
-  background: #c56f64;
-  /* light-gray */
-}
-.pie-chart-legend .legend-swatch.short-sample-swatch {
-  background: #5faf4c;
-}
-.pie-chart-legend .legend-swatch.strategic-sample-swatch {
-  background: #7963cb;
-}
-.pie-chart-legend .legend-swatch.cost-sample-swatch {
-  background: #b5b246;
-  /* rally red */
-}
-.pie-chart-legend .legend-swatch.maintenance-sample-swatch {
-  background: #c063ba;
-  /* rally red */
-}
-.pie-chart-legend .legend-swatch.errors-sample-swatch {
-  background: #4bae8f;
-  /* rally red */
-}
-.pie-chart-legend .legend-swatch.order-sample-swatch {
-  background: #cd4739;
-  /* rally red */
-}
-.pie-chart-legend .legend-swatch.time-sample-swatch {
-  background: #678ecd;
-  /* rally red */
-}
-.pie-chart-legend .legend-swatch.operational-sample-swatch {
-  background: #d08940;
-  /* rally red */
-}
-.pie-chart-legend .legend-swatch.product-progress-sample-swatch {
-  background: #c75481;
-  /* rally red */
-}
-.pie-chart-legend .legend-swatch.tech-sample-swatch {
-  background: #737632;
-  /* rally red */
 }
 
     </style>
