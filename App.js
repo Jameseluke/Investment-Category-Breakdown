@@ -16,7 +16,8 @@ Ext.define('CustomApp', {
         this.add({
             xtype: 'container',
             itemId: 'settingsContainer',
-            id: 'settings'
+            id: 'settings',
+            cls: 'settings'
         });
         this.add({
             xtype: 'container',
@@ -27,7 +28,7 @@ Ext.define('CustomApp', {
          
         this._addSettings();
         this._loadEpics();
-        this._hidden = false;
+        this._hidden = true;
         //API Docs: https://help.rallydev.com/apps/2.1/doc/
     },
     
@@ -122,7 +123,7 @@ Ext.define('CustomApp', {
                                 
          this.down('#toggleContainer').add(
             Ext.create('Ext.Button', {
-                text: 'Hide Settings',
+                text: 'Show Settings',
                 id: 'hide',
                 handler: function() {
                     if(!that._hidden){
@@ -182,13 +183,13 @@ Ext.define('CustomApp', {
                 handler: function() {
                     that.down('#settingsContainer').remove('backbutton');
                    that.down('#reportContainer').remove('chart');
-                   var chart = that._createChartConfig(that._investmentSeries, Ext.getCmp('group').getValue(), Ext.getCmp('group').getValue(),  Ext.getCmp('format').getValue(), 'Plan Estimate by Investment Category');
+                   var chart = that._createChartConfig(that._investmentSeries, Ext.getCmp('group').getValue(), Ext.getCmp('group').getValue(),  Ext.getCmp('format').getValue(), 'Plan Estimate by Investment Category', false);
                    that.down('#reportContainer').add(chart);
                 }
             })
          );
          
-        
+        Ext.getCmp('settings').hide();
         _.each(records, function(record) {
            that._addEpicToChart(record);
         });
@@ -200,16 +201,16 @@ Ext.define('CustomApp', {
     
     _createBackButton: function(){
         var that = this;
-        this.down('#settingsContainer').add(
+        this.down('#toggleContainer').add(
             Ext.create('Ext.Button', {
                 id: 'backbutton',
                 text: 'Back',
                 renderTo: Ext.getBody(),
                 handler: function() {
                    that.down('#reportContainer').remove('chart');
-                   var chart = that._createChartConfig(that._investmentSeries, Ext.getCmp('group').getValue(), Ext.getCmp('group').getValue(),  Ext.getCmp('format').getValue(), 'Plan Estimate by Investment Category');
+                   var chart = that._createChartConfig(that._investmentSeries, Ext.getCmp('group').getValue(), Ext.getCmp('group').getValue(),  Ext.getCmp('format').getValue(), 'Plan Estimate by Investment Category', false);
                    that.down('#reportContainer').add(chart);
-                   that.down('#settingsContainer').remove('backbutton');
+                   that.down('#toggleContainer').remove('backbutton');
                 }
             })
          );
@@ -237,7 +238,7 @@ Ext.define('CustomApp', {
         var additional = (this.point.rallyName) ? this.point.rallyName + "<br />" : "";
         return "<b>" + this.point.name + "</b><br />" + additional + "<b>Plan Estimate:</b> " + this.y + "<br /><b>Percentage of Investment:</b> " + this.percentage.toFixed(1) + "%";
     },
-    _createChartConfig: function(dataseries, detailed, byEpic, byEstimate, title) {
+    _createChartConfig: function(dataseries, detailed, byEpic, byEstimate, title, drilled) {
         var me = this;
         var clickChartHandler = _.isFunction(this.clickHandler) ? this.clickHandler : Ext.emptyFn;
         var height = this.height;
@@ -254,6 +255,7 @@ Ext.define('CustomApp', {
                         visible: !detailed,
                         data: dataseries,
                         size: pieHeight,
+                        showInLegend: false,
                         allowPointSelect: false,
                         dataLabels: {
                             enabled: settings["lb"],
@@ -275,6 +277,16 @@ Ext.define('CustomApp', {
                                 color: 'black'
                             }
                         }
+                    },
+                     {
+                        type: 'pie',
+                        name: 'Category',
+                        data: this._investmentSeries,
+                        showInLegend: !drilled,
+                        size: pieHeight,
+                        visible: !drilled,
+                        allowPointSelect: false,
+                        dataLabels: { enabled: false }
                     },
                     {
                         type: 'pie',
@@ -365,7 +377,7 @@ Ext.define('CustomApp', {
                                         console.log(category);
                                         me.down('#reportContainer').remove('chart');
                                         console.log(me._investmentDrilldown[category]["data"]);
-                                        var chart = me._createChartConfig(me._investmentDrilldown[category]["data"], false, true, Ext.getCmp('format').getValue(), category);
+                                        var chart = me._createChartConfig(me._investmentDrilldown[category]["data"], false, true, Ext.getCmp('format').getValue(), category, true);
                                         me.down('#reportContainer').add(chart);
                                         me.down(me._createBackButton());
                                     }
