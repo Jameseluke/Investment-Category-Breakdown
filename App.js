@@ -6,11 +6,12 @@ Ext.define('CustomApp', {
     
     launch: function() {
         //Write app code here
-        this._chartData = [];
-        this._investmentData = [];
-        this._investmentCategories = [];
-        this._investmentIndex = 0;
         this._investmentSeries = [];
+        this._investmentDrilldown = {};
+        this.add({
+            xtype: 'container',
+            itemId: 'settingsContainer'
+        });
         this.add({
             xtype: 'container',
             itemId: 'reportContainer'
@@ -23,7 +24,7 @@ Ext.define('CustomApp', {
     _loadEpics: function() {
         this.store = Ext.create('Rally.data.wsapi.artifact.Store', {
             models: ['PortfolioItem/Epic'],
-            fetch: ['FormattedID', 'Name', 'LeafStoryPlanEstimateTotal', 'InvestmentCategory'],
+            fetch: ['FormattedID', 'Name', 'LeafStoryPlanEstimateTotal', 'InvestmentCategory', '_ref'],
             filters: [],//this.context.getTimeboxScope().getQueryFilter()],
             sorters: [
                 {property: 'InvestmentCategory'}
@@ -44,39 +45,42 @@ Ext.define('CustomApp', {
     },
     
     _addEpicToChart: function(record) {
-        var color = this._colorFromInvestment(record.get('InvestmentCategory'));
-        this._chartData.push({
+        var category = record.get('InvestmentCategory');
+        var data = {
                 name: record.get('FormattedID'),
                 y: record.get('LeafStoryPlanEstimateTotal'),
-                color: color,
                 rallyName: record.get('Name'),
-                status: record.get('InvestmentCategory'),
+                status: category,
                 ref: record.get('_ref')
-        });
-
-        if(this._investmentCategories[this._investmentIndex] === undefined){ //Occurs on first record
-            this._investmentCategories[this._investmentIndex] = record.get("InvestmentCategory");
-            this._investmentData[this._investmentIndex] = record.get('LeafStoryPlanEstimateTotal');
-            console.log(typeof(record.get('LeafStoryPlanEstimateTotal')));
-            console.log(this._investmentIndex);
-        }
-        
-        else if(this._investmentCategories[this._investmentIndex] === record.get("InvestmentCategory")){
-            this._investmentData[this._investmentIndex] = this._investmentData[this._investmentIndex] + record.get('LeafStoryPlanEstimateTotal');
-
+            };
+        if(this._investmentDrilldown[category] === undefined){
+            this._investmentDrilldown[category] = {
+                name: category,
+                id: category,
+                data: [data]
+            };
         }
         
         else {
-            this._investmentSeries.push({
-                name: this._investmentCategories[this._investmentIndex],
-                y: this._investmentData[this._investmentIndex],
-                color: this._colorFromInvestment(this._investmentCategories[this._investmentIndex]),
-            });
-            this._investmentIndex++;
-            this._investmentCategories[this._investmentIndex] = record.get("InvestmentCategory");
-            this._investmentData[this._investmentIndex] = record.get('LeafStoryPlanEstimateTotal');
+            this._investmentDrilldown[category]["data"].push(data);
         }
-        
+    },
+    
+    
+    _formatData: function() {
+        var that = this;
+        _.each(this._investmentDrilldown, function(value){
+            var total = 0;
+            _.each(value["data"], function(datapoint){
+                total += datapoint["y"];
+            });
+            that._investmentSeries.push({
+                name: value["name"],
+                id: value["id"],
+                color: that._colorFromInvestment(value["name"]),
+                y: total
+            });
+        });
     },
     
     _onAllDataLoaded: function() {
@@ -98,7 +102,7 @@ Ext.define('CustomApp', {
                                     ]
                                 });
                                 
-        this.down('#reportContainer').add(
+        this.down('#settingsContainer').add(
             Ext.create('Ext.form.ComboBox', {
                 id: 'group',
                 fieldLabel: 'Group By:',
@@ -110,7 +114,7 @@ Ext.define('CustomApp', {
             })
         );
         
-        this.down('#reportContainer').add(
+        this.down('#settingsContainer').add(
             Ext.create('Ext.form.ComboBox', {
                 id: 'format',
                 fieldLabel: 'Format:',
@@ -121,31 +125,36 @@ Ext.define('CustomApp', {
                 value: false
             })
         );
+        
                                 
-        this.down('#reportContainer').add(
-            Ext.create('Ext.Button', {
-                text: 'Click me',
-                renderTo: Ext.getBody(),
-                handler: function() {
-                   that.down('#reportContainer').remove('chart');
-                   that._showEpic = !that._showEpic;
-                   var chart = that._createChartConfig(Ext.getCmp('group').getValue(), Ext.getCmp('format').getValue());
-                   that.down('#reportContainer').add(chart);
-                }
-            })
-         );
+        
+         
+         Ext.getCmp('button').center();
          
         _.each(records, function(record) {
            that._addEpicToChart(record);
         });
-        this._investmentSeries.push({
-                name: this._investmentCategories[this._investmentIndex],
-                y: this._investmentData[this._investmentIndex],
-                color: this._colorFromInvestment(this._investmentCategories[this._investmentIndex]),
-        });
         
-        var chart = this._createChartConfig(Ext.getCmp('group').getValue(), Ext.getCmp('format').getValue());
+        this._formatData();
+        var chart = this._createChartConfig(this._investmentSeries, false, false);
         this.down('#reportContainer').add(chart);
+    },
+    
+    _createBackButton: function(){
+        this.down('#settingsContainer').add(
+            Ext.create('Ext.Button', {
+                id: 'backbutton',
+                text: 'Back',
+                renderTo: Ext.getBody(),
+                handler: function() {
+                   that.down('#reportContainer').remove('chart');
+                   that._showEpic = !that._showEpic;
+                   var chart = that._createChartConfig(that._investmentSeries, false, false);
+                   that.down('#reportContainer').add(chart);
+                   this.remove();
+                }
+            })
+         );
     },
     
     _colorFromInvestment: function(category) { //refactor into css and classes, should get cleaner
@@ -165,54 +174,24 @@ Ext.define('CustomApp', {
         return progressColors[category];
     },
     
-    _createChartConfig: function(byEpic, byEstimate) {
+    _createChartConfig: function(dataseries, byEpic, byEstimate) {
         var me = this;
         var clickChartHandler = _.isFunction(this.clickHandler) ? this.clickHandler : Ext.emptyFn;
         var height = this.height;
         var pieHeight = this.height * 0.65;
-
         return Ext.Object.merge({
             xtype: 'rallychart',
             itemId: 'chart',
             loadMask: false,
             chartData: {
-                series: [
-                    {
-                        type: 'pie',
-                        name: 'Epics',
-                        data: this._chartData,
-                        size: pieHeight,
-                        allowPointSelect: false,
-                        showInLegend: false,
-                        dataLabels: {
-                            enabled: byEpic,
-                            formatter: function() {
-                                if (this.y !== 0) {
-                                    if(!byEstimate){
-                                        return "<b>" + this.point.name + ":</b> " + this.percentage.toFixed(1) + "%"; //'<b>{point.name}</b>: {point.percentage:.1f}';
-                                    } 
-                                    else {
-                                        return "<b>" + this.point.name + ":</b> " + this.y; //'<b>{point.name}</b>: {point.percentage:.1f}';
-                                    }
-                                  
-                                } else {
-                                  return null;
-                                }
-                            },
-                            style: {
-                                color: 'black'
-                            }
-                        }
-                    },
-                    {
+                series: [{
                         type: 'pie',
                         name: 'Category',
-                        data: this._investmentSeries,
+                        data: dataseries,
                         size: pieHeight,
-                        visible: !byEpic,
                         allowPointSelect: false,
                         dataLabels: {
-                            enabled: !byEpic,
+                            enabled: true,
                             formatter: function() {
                                 if (this.y !== 0) {
                                     if(!byEstimate){
@@ -230,8 +209,7 @@ Ext.define('CustomApp', {
                                 color: 'black'
                             }
                         }
-                    }
-                ]
+                    }]
             },
 
             chartConfig: {
@@ -284,13 +262,22 @@ Ext.define('CustomApp', {
                                 click: function() {
                                     var ref = this.ref;
                                     if (ref) {
-                                        me.up('rallydialog').destroy();
-                                        Rally.nav.Manager.showDetail(ref);
+                                        var url = Rally.nav.Manager.getDetailUrl(ref);
+                                         window.open(url,'_blank');
+                                        //Rally.nav.Manager.showDetail(ref);
+                                    } else {
+                                        var category = this.name;
+                                        console.log(category);
+                                        me.down('#reportContainer').remove('chart');
+                                        console.log(me._investmentDrilldown[category]["data"]);
+                                        var chart = me._createChartConfig(me._investmentDrilldown[category]["data"], true, false);
+                                        me.down('#reportContainer').add(chart);
+                                        me.down(me._createBackButton());
                                     }
                                 }
                             }
                         },
-                        showInLegend: true
+                        showInLegend: !byEpic
                     }
                 }
             }
