@@ -7,6 +7,7 @@ Ext.define('CustomApp', {
     launch: function() {
         //Write app code here
         this._investmentSeries = [];
+        this._epicSeries = [];
         this._investmentDrilldown = {};
         this.add({
             xtype: 'container',
@@ -64,6 +65,10 @@ Ext.define('CustomApp', {
         else {
             this._investmentDrilldown[category]["data"].push(data);
         }
+        
+        var temp = JSON.parse(JSON.stringify(data));
+        temp["color"] = this._colorFromInvestment(category);
+        this._epicSeries.push(temp);
     },
     
     
@@ -126,21 +131,29 @@ Ext.define('CustomApp', {
             })
         );
         
-                                
+        this.down('#settingsContainer').add(
+            Ext.create('Ext.Button', {
+                text: 'Generate',
+                handler: function() {
+                   that.down('#reportContainer').remove('chart');
+                   that._showEpic = !that._showEpic;
+                   var chart = that._createChartConfig(that._investmentSeries, Ext.getCmp('group').getValue(), Ext.getCmp('group').getValue(),  Ext.getCmp('format').getValue(), 'Plan Estimate by Investment Category');
+                   that.down('#reportContainer').add(chart);
+                }
+            })
+         );
         
-         
-         Ext.getCmp('button').center();
-         
         _.each(records, function(record) {
            that._addEpicToChart(record);
         });
         
         this._formatData();
-        var chart = this._createChartConfig(this._investmentSeries, false, false);
+        var chart = this._createChartConfig(this._investmentSeries,Ext.getCmp('group').getValue(), Ext.getCmp('group').getValue(),  Ext.getCmp('format').getValue(), 'Plan Estimate by Investment Category');
         this.down('#reportContainer').add(chart);
     },
     
     _createBackButton: function(){
+        var that = this;
         this.down('#settingsContainer').add(
             Ext.create('Ext.Button', {
                 id: 'backbutton',
@@ -148,13 +161,13 @@ Ext.define('CustomApp', {
                 renderTo: Ext.getBody(),
                 handler: function() {
                    that.down('#reportContainer').remove('chart');
-                   that._showEpic = !that._showEpic;
-                   var chart = that._createChartConfig(that._investmentSeries, false, false);
+                   var chart = that._createChartConfig(that._investmentSeries, Ext.getCmp('group').getValue(), Ext.getCmp('group').getValue(),  Ext.getCmp('format').getValue(), 'Plan Estimate by Investment Category');
                    that.down('#reportContainer').add(chart);
-                   this.remove();
+                   that.down('#settingsContainer').remove('backbutton');
                 }
             })
          );
+        Ext.getCmp('backbutton').center();
     },
     
     _colorFromInvestment: function(category) { //refactor into css and classes, should get cleaner
@@ -174,7 +187,12 @@ Ext.define('CustomApp', {
         return progressColors[category];
     },
     
-    _createChartConfig: function(dataseries, byEpic, byEstimate) {
+    _formatTooltip: function(){
+        var additional = (this.point.rallyName) ? this.point.rallyName + "<br />" : "";
+        return "<b>" + this.point.name + "</b><br />" + additional + "Plan Estimate: " + this.y + "<br />Percentage of Investment: " + this.percentage.toFixed(1) + "%";
+    },
+    
+    _createChartConfig: function(dataseries, detailed, byEpic, byEstimate, title) {
         var me = this;
         var clickChartHandler = _.isFunction(this.clickHandler) ? this.clickHandler : Ext.emptyFn;
         var height = this.height;
@@ -187,13 +205,43 @@ Ext.define('CustomApp', {
                 series: [{
                         type: 'pie',
                         name: 'Category',
+                        visible: !detailed,
                         data: dataseries,
                         size: pieHeight,
                         allowPointSelect: false,
                         dataLabels: {
                             enabled: true,
                             formatter: function() {
+                                var label = (byEpic) ? this.point.rallyName : this.point.name;
                                 if (this.y !== 0) {
+                                    if(!byEstimate){
+                                        return "<b>" + label + ":</b> " + this.percentage.toFixed(1) + "%"; //'<b>{point.name}</b>: {point.percentage:.1f}';
+                                    }
+                                    else {
+                                        return "<b>" + label + ":</b> " + this.y; //'<b>{point.name}</b>: {point.percentage:.1f}';
+                                    }
+                                  
+                                } else {
+                                  return null;
+                                }
+                            },
+                            style: {
+                                color: 'black'
+                            }
+                        }
+                    },
+                    {
+                        type: 'pie',
+                        name: 'Epics',
+                        data: this._epicSeries,
+                        size: pieHeight,
+                        visible: detailed,
+                        allowPointSelect: false,
+                        showInLegend: false,
+                        dataLabels: {
+                            enabled: detailed,
+                            formatter: function() {
+                                 if (this.y !== 0) {
                                     if(!byEstimate){
                                         return "<b>" + this.point.name + ":</b> " + this.percentage.toFixed(1) + "%"; //'<b>{point.name}</b>: {point.percentage:.1f}';
                                     }
@@ -245,12 +293,12 @@ Ext.define('CustomApp', {
                     x: 0,
                     y: -50
                 },*/
-                tooltip: {/*
+                tooltip: {
                     formatter: this._formatTooltip,
-                    useHTML: true*/
+                    useHTML: true
                 },
                 spacingTop: 0,
-                title: { text: null },
+                title: { text: title},
                 plotOptions: {
                     pie: {
                         animation: false,
@@ -270,7 +318,7 @@ Ext.define('CustomApp', {
                                         console.log(category);
                                         me.down('#reportContainer').remove('chart');
                                         console.log(me._investmentDrilldown[category]["data"]);
-                                        var chart = me._createChartConfig(me._investmentDrilldown[category]["data"], true, false);
+                                        var chart = me._createChartConfig(me._investmentDrilldown[category]["data"], false, true, Ext.getCmp('format').getValue(), category);
                                         me.down('#reportContainer').add(chart);
                                         me.down(me._createBackButton());
                                     }
