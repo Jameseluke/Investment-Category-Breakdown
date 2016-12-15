@@ -11,17 +11,28 @@ Ext.define('CustomApp', {
         this._investmentDrilldown = {};
         this.add({
             xtype: 'container',
+            itemId: 'toggleContainer',
+        });
+        this.add({
+            xtype: 'container',
             itemId: 'settingsContainer',
-            cls: 'settings'
+            id: 'settings'
         });
         this.add({
             xtype: 'container',
             itemId: 'reportContainer',
             cls: 'report'
         });
-        this._loadEpics();
         
+         
+        this._addSettings();
+        this._loadEpics();
+        this._hidden = false;
         //API Docs: https://help.rallydev.com/apps/2.1/doc/
+    },
+    
+    _addSettings: function() {
+        
     },
     
     _loadEpics: function() {
@@ -109,6 +120,25 @@ Ext.define('CustomApp', {
                                     ]
                                 });
                                 
+         this.down('#toggleContainer').add(
+            Ext.create('Ext.Button', {
+                text: 'Hide Settings',
+                id: 'hide',
+                handler: function() {
+                    if(!that._hidden){
+                        Ext.getCmp('settings').hide();
+                        this.setText('Show Settings');
+                    }
+                    else {
+                        Ext.getCmp('settings').show();
+                        this.setText('Hide Settings');
+                    }
+                    that._hidden = !that._hidden;
+                }
+            })
+         );
+        
+                                
         this.down('#settingsContainer').add(
             Ext.create('Ext.form.ComboBox', {
                 id: 'group',
@@ -158,7 +188,6 @@ Ext.define('CustomApp', {
             })
          );
          
-        
         
         _.each(records, function(record) {
            that._addEpicToChart(record);
@@ -316,7 +345,7 @@ Ext.define('CustomApp', {
                     useHTML: true
                 },
                 spacingTop: 0,
-                title: { text: title},
+                title: { text: title, color: 'black'},
                 plotOptions: {
                     pie: {
                         animation: false,
