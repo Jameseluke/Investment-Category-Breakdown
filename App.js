@@ -5,7 +5,7 @@ Ext.define('CustomApp', {
     border: 2,
     
     launch: function() {
-        //Write app code here
+        // Contains the base series
         this._investmentSeries = [];
         this._epicSeries = [];
         this._investmentDrilldown = {};
@@ -31,16 +31,27 @@ Ext.define('CustomApp', {
         this._hidden = true;
         //API Docs: https://help.rallydev.com/apps/2.1/doc/
     },
-    
-    _addSettings: function() {
-        
-    },
-    
+ 
+    // Creates the store that data is read from of all epics in current project
+    // Calls _onAllDataLoaded on succesful load
     _loadEpics: function() {
+        var filter1 = Ext.create('Rally.data.wsapi.Filter', {
+             property: 'State',
+             operator: '=',
+             value: 'Evolve'
+        });
+        
+        var filter2 = filter1.or(Ext.create('Rally.data.wsapi.Filter', {
+            property: 'State',
+            operator: '=',
+            value: 'Discover OOM'
+        }));
+                
+        
         this.store = Ext.create('Rally.data.wsapi.artifact.Store', {
             models: ['PortfolioItem/Epic'],
             fetch: ['FormattedID', 'Name', 'LeafStoryPlanEstimateTotal', 'InvestmentCategory', '_ref'],
-            filters: [],//this.context.getTimeboxScope().getQueryFilter()],
+            filters: [filter2],//this.context.getTimeboxScope().getQueryFilter()],
             sorters: [
                 {property: 'InvestmentCategory'}
             ],
@@ -55,9 +66,108 @@ Ext.define('CustomApp', {
         });
     },
     
-    _test: function(record){
-        console.log(record.get("FormattedID"));
+    
+     _onAllDataLoaded: function() {
+        var records = this.store.getRange();
+        var that = this;
+        _.each(records, function(record) {
+           that._addEpicToChart(record);
+        });
+        this._formatData();
+        var chart = this._createChartConfig(this._investmentSeries,Ext.getCmp('group').getValue(), Ext.getCmp('group').getValue(), 'Plan Estimate by Investment Category');
+        this.down('#reportContainer').add(chart);
     },
+    
+   _addSettings: function() {
+       var that = this;
+       // Assigns values to the labels to be put inside the dropdowns
+        var states = Ext.create('Ext.data.Store', {
+                                    fields: ['grouper', 'epicornah'],
+                                    data : [
+                                        {'grouper': 'Epic', 'epicornah': true},
+                                        {'grouper': 'Investment Category', 'epicornah': false},
+                                    ]
+                                });
+         var format = Ext.create('Ext.data.Store', {
+                                    fields: ['grouper', 'storyornah'],
+                                    data : [
+                                        {'grouper': 'Percentage', 'storyornah': false},
+                                        {'grouper': 'Plan Estimate', 'storyornah': true},
+                                    ]
+                                });
+                                
+         // Toggles the visibility of the settings container                       
+         this.down('#toggleContainer').add(
+            Ext.create('Ext.Button', {
+                text: 'Show Settings',
+                id: 'hide',
+                handler: function() {
+                    if(!that._hidden){
+                        Ext.getCmp('settings').hide();
+                        this.setText('Show Settings');
+                    }
+                    else {
+                        Ext.getCmp('settings').show();
+                        this.setText('Hide Settings');
+                    }
+                    that._hidden = !that._hidden;
+                }
+            })
+         );
+        
+        // True to display detailed view, false to show summary view                      
+        this.down('#settingsContainer').add(
+            Ext.create('Ext.form.ComboBox', {
+                id: 'group',
+                fieldLabel: 'Group By:',
+                store: states,
+                queryMode: 'local',
+                displayField: 'grouper',
+                valueField: 'epicornah',
+                value: false
+            })
+        );
+        
+        // True to display story count, false to display percentage in label
+        this.down('#settingsContainer').add(
+            Ext.create('Ext.form.ComboBox', {
+                id: 'format',
+                fieldLabel: 'Format:',
+                store: format,
+                queryMode: 'local',
+                displayField: 'grouper',
+                valueField: 'storyornah',
+                value: false
+            })
+        );
+        
+         this.down('#settingsContainer').add({
+            xtype: 'checkboxgroup',
+            fieldLabel: '',
+            id: 'check',
+            columns: 1,
+            vertical: true,
+            items: [
+                { boxLabel: 'Show Labels', name: 'lb', inputValue: '1', checked: true },
+                { boxLabel: 'Show Tooltips', name: 'tt', inputValue: '2', checked: true },
+            ]
+        });
+        // button that applies the given settings and creates a new top level graph
+        this.down('#settingsContainer').add(
+            Ext.create('Ext.Button', {
+                text: 'Generate',
+                handler: function() {
+                    that.down('#settingsContainer').remove('backbutton');
+                   that.down('#reportContainer').remove('chart');
+                   var chart = that._createChartConfig(that._investmentSeries, Ext.getCmp('group').getValue(), Ext.getCmp('group').getValue(), 'Plan Estimate by Investment Category', false);
+                   that.down('#reportContainer').add(chart);
+                }
+            })
+         );
+         // Settings start hidden
+        Ext.getCmp('settings').hide();
+    },
+
     
     _addEpicToChart: function(record) {
         var category = record.get('InvestmentCategory');
@@ -102,102 +212,7 @@ Ext.define('CustomApp', {
         });
     },
     
-    _onAllDataLoaded: function() {
-        var records = this.store.getRange();
-        var that = this;
-        
-        var states = Ext.create('Ext.data.Store', {
-                                    fields: ['grouper', 'epicornah'],
-                                    data : [
-                                        {'grouper': 'Epic', 'epicornah': true},
-                                        {'grouper': 'Investment Category', 'epicornah': false},
-                                    ]
-                                });
-         var format = Ext.create('Ext.data.Store', {
-                                    fields: ['grouper', 'storyornah'],
-                                    data : [
-                                        {'grouper': 'Percentage', 'storyornah': false},
-                                        {'grouper': 'Plan Estimate', 'storyornah': true},
-                                    ]
-                                });
-                                
-         this.down('#toggleContainer').add(
-            Ext.create('Ext.Button', {
-                text: 'Show Settings',
-                id: 'hide',
-                handler: function() {
-                    if(!that._hidden){
-                        Ext.getCmp('settings').hide();
-                        this.setText('Show Settings');
-                    }
-                    else {
-                        Ext.getCmp('settings').show();
-                        this.setText('Hide Settings');
-                    }
-                    that._hidden = !that._hidden;
-                }
-            })
-         );
-        
-                                
-        this.down('#settingsContainer').add(
-            Ext.create('Ext.form.ComboBox', {
-                id: 'group',
-                fieldLabel: 'Group By:',
-                store: states,
-                queryMode: 'local',
-                displayField: 'grouper',
-                valueField: 'epicornah',
-                value: false
-            })
-        );
-        
-        this.down('#settingsContainer').add(
-            Ext.create('Ext.form.ComboBox', {
-                id: 'format',
-                fieldLabel: 'Format:',
-                store: format,
-                queryMode: 'local',
-                displayField: 'grouper',
-                valueField: 'storyornah',
-                value: false
-            })
-        );
-        
-         this.down('#settingsContainer').add({
-            xtype: 'checkboxgroup',
-            fieldLabel: '',
-            id: 'check',
-            columns: 1,
-            vertical: true,
-            // Arrange checkboxes into two columns, distributed vertically
-            items: [
-                { boxLabel: 'Show Labels', name: 'lb', inputValue: '1', checked: true },
-                { boxLabel: 'Show Tooltips', name: 'tt', inputValue: '2', checked: true },
-            ]
-        });
-        
-        this.down('#settingsContainer').add(
-            Ext.create('Ext.Button', {
-                text: 'Generate',
-                handler: function() {
-                    that.down('#settingsContainer').remove('backbutton');
-                   that.down('#reportContainer').remove('chart');
-                   var chart = that._createChartConfig(that._investmentSeries, Ext.getCmp('group').getValue(), Ext.getCmp('group').getValue(),  Ext.getCmp('format').getValue(), 'Plan Estimate by Investment Category', false);
-                   that.down('#reportContainer').add(chart);
-                }
-            })
-         );
-         
-        Ext.getCmp('settings').hide();
-        _.each(records, function(record) {
-           that._addEpicToChart(record);
-        });
-        
-        this._formatData();
-        var chart = this._createChartConfig(this._investmentSeries,Ext.getCmp('group').getValue(), Ext.getCmp('group').getValue(),  Ext.getCmp('format').getValue(), 'Plan Estimate by Investment Category');
-        this.down('#reportContainer').add(chart);
-    },
+   
     
     _createBackButton: function(){
         var that = this;
@@ -208,7 +223,7 @@ Ext.define('CustomApp', {
                 renderTo: Ext.getBody(),
                 handler: function() {
                    that.down('#reportContainer').remove('chart');
-                   var chart = that._createChartConfig(that._investmentSeries, Ext.getCmp('group').getValue(), Ext.getCmp('group').getValue(),  Ext.getCmp('format').getValue(), 'Plan Estimate by Investment Category', false);
+                   var chart = that._createChartConfig(that._investmentSeries, Ext.getCmp('group').getValue(), Ext.getCmp('group').getValue(), 'Plan Estimate by Investment Category', false);
                    that.down('#reportContainer').add(chart);
                    that.down('#toggleContainer').remove('backbutton');
                 }
@@ -238,7 +253,7 @@ Ext.define('CustomApp', {
         var additional = (this.point.rallyName) ? this.point.rallyName + "<br />" : "";
         return "<b>" + this.point.name + "</b><br />" + additional + "<b>Plan Estimate:</b> " + this.y + "<br /><b>Percentage of Investment:</b> " + this.percentage.toFixed(1) + "%";
     },
-    _createChartConfig: function(dataseries, detailed, byEpic, byEstimate, title, drilled) {
+    _createChartConfig: function(dataseries, detailed, byEpic, title, drilled) {
         var me = this;
         var clickChartHandler = _.isFunction(this.clickHandler) ? this.clickHandler : Ext.emptyFn;
         var height = this.height;
@@ -262,7 +277,7 @@ Ext.define('CustomApp', {
                             formatter: function() {
                                 var label = (byEpic) ? this.point.rallyName : this.point.name;
                                 if (this.y !== 0) {
-                                    if(!byEstimate){
+                                    if(!Ext.getCmp('format').getValue()){
                                         return "<b>" + label + ":</b> " + this.percentage.toFixed(1) + "%"; //'<b>{point.name}</b>: {point.percentage:.1f}';
                                     }
                                     else {
@@ -300,7 +315,7 @@ Ext.define('CustomApp', {
                             enabled: settings["lb"],
                             formatter: function() {
                                  if (this.y !== 0) {
-                                    if(!byEstimate){
+                                    if(!Ext.getCmp('format').getValue()){
                                         return "<b>" + this.point.name + ":</b> " + this.percentage.toFixed(1) + "%"; //'<b>{point.name}</b>: {point.percentage:.1f}';
                                     }
                                     else {
@@ -377,7 +392,7 @@ Ext.define('CustomApp', {
                                         console.log(category);
                                         me.down('#reportContainer').remove('chart');
                                         console.log(me._investmentDrilldown[category]["data"]);
-                                        var chart = me._createChartConfig(me._investmentDrilldown[category]["data"], false, true, Ext.getCmp('format').getValue(), category, true);
+                                        var chart = me._createChartConfig(me._investmentDrilldown[category]["data"], false, true, category, true);
                                         me.down('#reportContainer').add(chart);
                                         me.down(me._createBackButton());
                                     }
